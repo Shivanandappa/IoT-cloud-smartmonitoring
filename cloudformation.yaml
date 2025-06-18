@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create AWS IoT Core, AWS IoT Analytics, and Amazon SageMaker notebook instance, and SNS topic in eu-central-1 region.
+
+Resources:
+  IoTPolicy:
+    Type: AWS::IoT::Policy
+    Properties: 
+      PolicyName: MyIoTPolicy
+      PolicyDocument: 
+        Version: 2012-10-17
+        Statement: 
+          - Effect: Allow
+            Action: 
+              - iot:*
+            Resource: "*"
+  
+  IoTThing:
+    Type: AWS::IoT::Thing
+    Properties:
+      ThingName: MyIoTThing
+
+  IoTAnalyticsChannel:
+    Type: AWS::IoTAnalytics::Channel
+    Properties: 
+      ChannelName: MyIoTAnalyticsChannel
+      ChannelStorage: 
+        ServiceManagedS3: {}
+
+  IoTAnalyticsDatastore:
+    Type: AWS::IoTAnalytics::Datastore
+    Properties: 
+      DatastoreName: MyIoTAnalyticsDatastore
+      DatastoreStorage: 
+        ServiceManagedS3: {}
+
+  IoTAnalyticsPipeline:
+    Type: AWS::IoTAnalytics::Pipeline
+    Properties: 
+      PipelineName: MyIoTAnalyticsPipeline
+      PipelineActivities: 
+        - Channel:
+            Name: MyChannelActivity
+            ChannelName: !Ref IoTAnalyticsChannel
+            Next: DatastoreActivity
+        - Datastore:
+            Name: DatastoreActivity
+            DatastoreName: !Ref IoTAnalyticsDatastore
+
+  SageMakerNotebookInstance:
+    Type: AWS::SageMaker::NotebookInstance
+    Properties:
+      NotebookInstanceName: MySageMakerNotebook
+      InstanceType: ml.t2.medium
+      RoleArn: !GetAtt SageMakerExecutionRole.Arn
+
+  SageMakerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: SageMakerExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SageMakerBasicExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:*
+                  - logs:*
+                  - cloudwatch:*
+                  - iam:PassRole
+                  - iot:*
+                Resource: "*"
+
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: MySNSTopic
+
+Outputs:
+  IoTThingName:
+    Description: "IoT_Device"
+    Value: !Ref IoTThing
+  IoTAnalyticsChannelName:
+    Description: "IoT_Device_Analytics"
+    Value: !Ref IoTAnalyticsChannel
+  IoTAnalyticsDatastoreName:
+    Description: "IoT_Device_DBMS"
+    Value: !Ref IoTAnalyticsDatastore
+  SageMakerNotebookInstanceName:
+    Description: "LSTM_SageMaker"
+    Value: !Ref SageMakerNotebookInstance
+  SNSTopicName:
+    Description: "Lamda.py"
+    Value: !Ref SNSTopic
